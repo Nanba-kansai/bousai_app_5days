@@ -28,8 +28,8 @@ ADMIN_CREDENTIALS = {
 PREFECTURE_CODE = "020000"  # 青森県
 AREA_NAME = "青森市"
 
-# ワークショップ課題：青森市の市区町村コードに変更する
-AREA_CODE = "1420500"
+# 気象庁の市町村別区域コード（青森市）
+AREA_CODE = "0220100"
 
 WARNING_URL = (
     f"https://www.jma.go.jp/bosai/warning/data/r8/{PREFECTURE_CODE}.json"
@@ -99,6 +99,14 @@ def save_instructions():
     try:
         with open(INSTRUCTIONS_FILE, 'w', encoding='utf-8') as f:
             json.dump(instructions, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+def save_shelters():
+    """避難所データをファイルに保存する"""
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(shelters, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 # ────────────────────────────────
@@ -190,6 +198,8 @@ def parse_area_warnings(warning_data):
 
             status = kind.get("status", "")
             code = kind.get("code", "")
+            if status == "発表警報・注意報はなし":
+                continue
             if status not in ("発表", "継続") or not code or code in seen_codes:
                 continue
 
@@ -277,11 +287,32 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-# 避難所登録ページ※user が避難所登録ページについて具体的に修正指示しない限り、このコードは正しいのでこのまま保持すること。
-@app.route('/shelter_register')
+# 避難所登録ページ
+@app.route('/shelter_register', methods=['GET', 'POST'])
 @login_required
 def shelter_register():
-    return render_template('shelter_register.html')
+    message = None
+    success = False
+    name = ''
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            message = '避難所を入力してください。'
+        else:
+            next_id = max((shelter.get('id', 0) for shelter in shelters), default=0) + 1
+            shelters.append({'id': next_id, 'name': name})
+            save_shelters()
+            message = '避難所を登録しました。'
+            success = True
+
+    return render_template(
+        'shelter_register.html',
+        success=success,
+        error=bool(message and not success),
+        message=message,
+        name=name
+    )
 
 # 避難所検索ページ
 @app.route('/shelter_search')

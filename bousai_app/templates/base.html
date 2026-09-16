@@ -4,18 +4,23 @@
   <meta charset="utf-8">
   <title>{% block title %}防災アプリ{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <!-- ヘッダー -->
-  <h1>防災アプリ</h1>
+  <header class="site-header">
+    <h1>防災アプリ</h1>
+    <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="site-navigation">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </header>
 
-  <!-- ナビゲーション -->
-  <nav>
-    <a href="/">ホーム</a> |
-    <a href="/shelter_search">避難所検索</a> |
-    <a href="/shelter_register">避難所登録</a> |
+  <nav id="site-navigation" class="site-navigation">
+    <a href="/">ホーム</a>
+    <a href="/shelter_search">避難所検索</a>
+    <a href="/shelter_register">避難所登録</a>
     <a href="/board">指示・発信ボード</a>
-    ｜
     {% if session.logged_in %}
       ログイン中{% if session.username %}（{{ session.username }}）{% endif %}
       <a href="/logout">ログアウト</a>
@@ -24,11 +29,18 @@
       <a href="/login">ログイン</a>
     {% endif %}
   </nav>
-  <hr>
-
   <main>
-    <!-- ここに子テンプレートの content が入る -->
     {% block content %}{% endblock %}
   </main>
+
+  <script>
+    const menuToggle = document.querySelector('.menu-toggle');
+    const siteNavigation = document.querySelector('.site-navigation');
+
+    menuToggle.addEventListener('click', () => {
+      const isOpen = siteNavigation.classList.toggle('is-open');
+      menuToggle.setAttribute('aria-expanded', isOpen);
+    });
+  </script>
 </body>
 </html>
