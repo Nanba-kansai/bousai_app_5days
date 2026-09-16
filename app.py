@@ -147,9 +147,22 @@ def format_report_time(iso_str):
         return iso_str
 
 
-def filter_shelters(district=None):
-    """district 指定があれば一致する避難所のみ、なければ全件を返す"""
-    return [s for s in shelters if not district or s.get('district') == district]
+SHELTER_CONDITIONS = {
+    'pregnant': '妊婦',
+    'wheelchair': '車いす利用者',
+    'pet': 'ペット同伴',
+    'disability': '障がいのある方'
+}
+
+
+def filter_shelters(district=None, conditions=None):
+    """district と避難者条件に一致する避難所を返す"""
+    conditions = conditions or []
+    return [
+        shelter for shelter in shelters
+        if (not district or shelter.get('district') == district)
+        and all(shelter.get(condition) is True for condition in conditions)
+    ]
 
 
 def parse_area_warnings(warning_data):
@@ -315,9 +328,22 @@ def shelter_register():
     )
 
 # 避難所検索ページ
-@app.route('/shelter_search')
+@app.route('/shelter_search', methods=['GET', 'POST'])
 def shelter_search():
-    return render_template('shelter_search.html')
+    if request.method == 'POST':
+        selected_conditions = [
+            condition for condition in SHELTER_CONDITIONS
+            if request.form.get(condition) == 'on'
+        ]
+        session['shelter_search_conditions'] = selected_conditions
+        return redirect(url_for('search_results'))
+
+    selected_conditions = session.get('shelter_search_conditions', [])
+    return render_template(
+        'shelter_search.html',
+        conditions=SHELTER_CONDITIONS,
+        selected_conditions=selected_conditions
+    )
 
 # 全施設一覧ページ
 @app.route('/all_shelters')
@@ -335,8 +361,17 @@ def board():
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results')
 def search_results():
-    results = filter_shelters(request.args.get('district'))
-    return render_template('search_results.html', results=results)
+    selected_conditions = session.get('shelter_search_conditions', [])
+    results = filter_shelters(
+        request.args.get('district'),
+        selected_conditions
+    )
+    return render_template(
+        'search_results.html',
+        results=results,
+        selected_conditions=selected_conditions,
+        condition_labels=SHELTER_CONDITIONS
+    )
 
 # JSON API：/shelters?district=地区名
 @app.route('/shelters', methods=['GET'])

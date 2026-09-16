@@ -1,8 +1,58 @@
 {% extends "base.html" %}
 
+{% block title %}避難所検索 | 防災アプリ{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+	.shelter-search-layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr); }
+	.location-map { min-height: 24rem; width: 100%; }
+	.condition-list { display: grid; gap: 0.8rem; margin: 1.2rem 0; }
+	.condition-list label { font-size: 1.1rem; }
+	.search-button { padding: 0.7rem 2.5rem; }
+	@media (max-width: 700px) { .shelter-search-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
 {% block content %}
 <h2>避難所検索</h2>
-<p>登録されている避難所を確認できます。</p>
+
+<div class="shelter-search-layout">
+	<section aria-labelledby="map-heading">
+		<h3 id="map-heading">現在地周辺の地図</h3>
+		<div id="location-map" class="location-map" aria-label="現在地を表示する地図"></div>
+		<p id="location-status" role="status">現在地: 青森県青森市</p>
+	</section>
+
+	<section aria-labelledby="condition-heading">
+		<h3 id="condition-heading">避難条件を選択</h3>
+		<p>次の項目に当てはまる場合はチェックを入れて、検索してください。</p>
+		<form method="post" action="{{ url_for('shelter_search') }}">
+			<div class="condition-list">
+				{% for value, label in conditions.items() %}
+				<label>
+					<input type="checkbox" name="{{ value }}" {% if value in selected_conditions %}checked{% endif %}>
+					{{ label }}
+				</label>
+				{% endfor %}
+			</div>
+			<button class="search-button" type="submit">検索</button>
+		</form>
+	</section>
+</div>
 
 <p><a href="/all_shelters">全施設一覧</a></p>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+	const registeredLocation = [40.8246, 140.7400];
+	const map = L.map('location-map').setView(registeredLocation, 13);
+	const status = document.getElementById('location-status');
+	L.marker(registeredLocation).addTo(map).bindPopup('現在地: 青森県青森市').openPopup();
+
+	L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
+		attribution: '&copy; OpenStreetMap contributors'
+	}).addTo(map);
+
+</script>
 {% endblock %}
