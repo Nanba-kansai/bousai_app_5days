@@ -1,5 +1,16 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  .shelter-result-map { height: 24rem; margin: 1rem 0 2rem; }
+  .shelter-list { padding-left: 1.2rem; }
+  .shelter-list li { margin-bottom: 1.5rem; }
+  .condition-icons { display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 0; list-style: none; }
+  .condition-icons li { margin: 0; padding: 0.35rem 0.6rem; border: 1px solid #999; border-radius: 0.25rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <h2>検索結果</h2>
 
@@ -8,9 +19,23 @@
 {% endif %}
 
 {% if results %}
-  <ul>
+  <div id="shelter-result-map" class="shelter-result-map" aria-label="避難所の位置を表示する地図"></div>
+  <ul class="shelter-list">
     {% for shelter in results %}
-    <li>{{ shelter.name }}</li>
+    <li>
+      <h3>{{ shelter.name }}</h3>
+      <ul class="condition-icons" aria-label="対応条件">
+        {% for condition, label in condition_labels.items() if shelter.get(condition) %}
+        <li><span aria-hidden="true">{{ condition_icons[condition] }}</span> {{ label }}</li>
+        {% endfor %}
+      </ul>
+      <dl>
+        <dt>住所</dt>
+        <dd>{{ shelter.address or '未登録' }}</dd>
+        <dt>詳細情報</dt>
+        <dd>{{ shelter.details or '未登録' }}</dd>
+      </dl>
+    </li>
     {% endfor %}
   </ul>
 {% else %}
@@ -21,4 +46,27 @@
   <a href="/shelter_search">検索画面に戻る</a> |
   <a href="/">トップページへ戻る</a>
 </p>
+
+{% if results %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const shelters = {{ results | tojson }};
+  const defaultLocation = [40.8246, 140.7400];
+  const map = L.map('shelter-result-map').setView(defaultLocation, 13);
+  const locations = [];
+
+  L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  shelters.forEach((shelter) => {
+    if (typeof shelter.latitude !== 'number' || typeof shelter.longitude !== 'number') return;
+    const location = [shelter.latitude, shelter.longitude];
+    locations.push(location);
+    L.marker(location).addTo(map).bindPopup(`<strong>${shelter.name}</strong><br>${shelter.address || '住所未登録'}`);
+  });
+
+  if (locations.length > 0) map.fitBounds(locations, { padding: [30, 30] });
+</script>
+{% endif %}
 {% endblock %}

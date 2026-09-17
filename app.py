@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, render_template, session, redirect, url_for
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, quote
 from functools import wraps
 import json
 import os
@@ -154,6 +154,36 @@ SHELTER_CONDITIONS = {
     'disability': '障がいのある方'
 }
 
+SHELTER_CONDITION_ICONS = {
+    'pregnant': '🤰',
+    'wheelchair': '♿',
+    'pet': '🐾',
+    'disability': '🤝'
+}
+
+
+def geocode_address(address):
+    """住所を地図表示用の緯度・経度へ変換する"""
+    if not address:
+        return None
+    query = quote(address)
+    url = f'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q={query}'
+    try:
+        request = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'bousai-app-shelter-map/1.0'}
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            locations = json.loads(response.read())
+        if locations:
+            return {
+                'latitude': float(locations[0]['lat']),
+                'longitude': float(locations[0]['lon'])
+            }
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        pass
+    return None
+
 
 def filter_shelters(district=None, conditions=None):
     """district と避難者条件に一致する避難所を返す"""
@@ -307,14 +337,33 @@ def shelter_register():
     message = None
     success = False
     name = ''
+    address = ''
+    details = ''
+    selected_conditions = []
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
+        address = request.form.get('address', '').strip()
+        details = request.form.get('details', '').strip()
+        selected_conditions = [
+            condition for condition in SHELTER_CONDITIONS
+            if request.form.get(condition) == 'on'
+        ]
         if not name:
             message = '避難所を入力してください。'
         else:
             next_id = max((shelter.get('id', 0) for shelter in shelters), default=0) + 1
-            shelters.append({'id': next_id, 'name': name})
+            shelter = {
+                'id': next_id,
+                'name': name,
+                'address': address,
+                'details': details,
+                **{condition: condition in selected_conditions for condition in SHELTER_CONDITIONS}
+            }
+            coordinates = geocode_address(address)
+            if coordinates:
+                shelter.update(coordinates)
+            shelters.append(shelter)
             save_shelters()
             message = '避難所を登録しました。'
             success = True
@@ -324,7 +373,12 @@ def shelter_register():
         success=success,
         error=bool(message and not success),
         message=message,
-        name=name
+        name=name,
+        address=address,
+        details=details,
+        conditions=SHELTER_CONDITIONS,
+        condition_icons=SHELTER_CONDITION_ICONS,
+        selected_conditions=locals().get('selected_conditions', [])
     )
 
 # 避難所検索ページ
@@ -338,17 +392,25 @@ def shelter_search():
         session['shelter_search_conditions'] = selected_conditions
         return redirect(url_for('search_results'))
 
-    selected_conditions = session.get('shelter_search_conditions', [])
+    session.pop('shelter_search_conditions', None)
+    selected_conditions = []
     return render_template(
         'shelter_search.html',
         conditions=SHELTER_CONDITIONS,
-        selected_conditions=selected_conditions
+        selected_conditions=selected_conditions,
+        condition_icons=SHELTER_CONDITION_ICONS
     )
 
 # 全施設一覧ページ
 @app.route('/all_shelters')
 def all_shelters():
-    return render_template('search_results.html', results=shelters)
+    return render_template(
+        'search_results.html',
+        results=shelters,
+        selected_conditions=[],
+        condition_labels=SHELTER_CONDITIONS,
+        condition_icons=SHELTER_CONDITION_ICONS
+    )
 
 
 # 指示ボード：住民向けの指示を一覧で確認する
@@ -361,7 +423,7 @@ def board():
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results')
 def search_results():
-    selected_conditions = session.get('shelter_search_conditions', [])
+    selected_conditions = session.pop('shelter_search_conditions', [])
     results = filter_shelters(
         request.args.get('district'),
         selected_conditions
@@ -370,7 +432,8 @@ def search_results():
         'search_results.html',
         results=results,
         selected_conditions=selected_conditions,
-        condition_labels=SHELTER_CONDITIONS
+        condition_labels=SHELTER_CONDITIONS,
+        condition_icons=SHELTER_CONDITION_ICONS
     )
 
 # JSON API：/shelters?district=地区名

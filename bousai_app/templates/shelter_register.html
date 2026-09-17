@@ -15,6 +15,23 @@
     <label for="name">避難所名（必須）</label><br>
     <input type="text" id="name" name="name" value="{{ name }}">
   </p>
+  <p>
+    <label for="address">住所</label><br>
+    <input type="text" id="address" name="address" value="{{ address }}" placeholder="例: 青森県青森市中央1-1-1">
+  </p>
+  <p>
+    <label for="details">詳細情報</label><br>
+    <textarea id="details" name="details" rows="5" cols="40" placeholder="開設時間、設備、注意事項など">{{ details }}</textarea>
+  </p>
+  <fieldset>
+    <legend>対応している避難者</legend>
+    {% for value, label in conditions.items() %}
+    <label>
+      <input type="checkbox" name="{{ value }}" {% if value in selected_conditions %}checked{% endif %}>
+      <span aria-hidden="true">{{ condition_icons[value] }}</span> {{ label }}
+    </label><br>
+    {% endfor %}
+  </fieldset>
   <p><button type="submit">登録</button></p>
 </form>
 {% endblock %}

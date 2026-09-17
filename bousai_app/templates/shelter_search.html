@@ -5,12 +5,29 @@
 {% block head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
+	body { margin: 0; background: #fbfcfe; color: #394453; font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; }
+	.site-header { display: flex; align-items: center; justify-content: space-between; height: 70px; padding: 0 max(28px, calc((100% - 1380px) / 2)); box-sizing: border-box; background: #2f5eae; color: #fff; }
+	.site-header h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; }
+	.menu-toggle { display: grid; gap: 4px; width: 32px; padding: 6px 3px; border: 0; background: transparent; cursor: pointer; }
+	.menu-toggle span { display: block; height: 3px; border-radius: 2px; background: #fff; }
+	.site-navigation { display: none; position: absolute; z-index: 1000; top: 70px; right: max(28px, calc((100% - 1380px) / 2)); padding: 14px 18px; border-radius: 0 0 8px 8px; background: #fff; box-shadow: 0 8px 28px rgba(35, 68, 113, 0.08); }
+	.site-navigation.is-open { display: flex; flex-direction: column; gap: 10px; }
+	.site-navigation a { color: #244f9b; text-decoration: none; }
 	.shelter-search-layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr); }
 	.location-map { min-height: 24rem; width: 100%; }
+	.condition-panel { padding: 1.25rem; border: 2px solid #2f5eae; border-radius: 8px; background: #f4f8ff; }
 	.condition-list { display: grid; gap: 0.8rem; margin: 1.2rem 0; }
-	.condition-list label { font-size: 1.1rem; }
-	.search-button { padding: 0.7rem 2.5rem; }
-	@media (max-width: 700px) { .shelter-search-layout { grid-template-columns: 1fr; } }
+	.condition-list label { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.65rem; border: 1px solid #c7d4e8; border-radius: 6px; background: #fff; font-size: 1.1rem; cursor: pointer; }
+	.condition-list input { width: 1.2rem; height: 1.2rem; accent-color: #2f5eae; }
+	.search-button { padding: 0.75rem 2.8rem; border: 0; border-radius: 6px; background: #2f5eae; color: #fff; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
+	.search-button:hover { background: #244f9b; }
+	.search-button:focus-visible, .condition-list label:has(input:focus-visible) { outline: 3px solid #f2b134; outline-offset: 2px; }
+	@media (max-width: 700px) {
+		.site-header { height: 62px; padding: 0 18px; }
+		.site-header h1 { font-size: 21px; }
+		.site-navigation { top: 62px; right: 18px; }
+		.shelter-search-layout { grid-template-columns: 1fr; }
+	}
 </style>
 {% endblock %}
 
@@ -24,7 +41,7 @@
 		<p id="location-status" role="status">現在地: 青森県青森市</p>
 	</section>
 
-	<section aria-labelledby="condition-heading">
+	<section class="condition-panel" aria-labelledby="condition-heading">
 		<h3 id="condition-heading">避難条件を選択</h3>
 		<p>次の項目に当てはまる場合はチェックを入れて、検索してください。</p>
 		<form method="post" action="{{ url_for('shelter_search') }}">
@@ -32,7 +49,7 @@
 				{% for value, label in conditions.items() %}
 				<label>
 					<input type="checkbox" name="{{ value }}" {% if value in selected_conditions %}checked{% endif %}>
-					{{ label }}
+					<span aria-hidden="true">{{ condition_icons[value] }}</span> {{ label }}
 				</label>
 				{% endfor %}
 			</div>
@@ -40,8 +57,6 @@
 		</form>
 	</section>
 </div>
-
-<p><a href="/all_shelters">全施設一覧</a></p>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
